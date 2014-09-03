@@ -66,7 +66,7 @@ EXPORT_TEMP_DIR=`mktemp -d -t "${CURRENT_SCRIPT_NAME}"` || die "Failed to create
 git checkout-index -a --prefix="$EXPORT_TEMP_DIR"/
 
 # Sync the exported files from the temp directory into $OUTPUT_DIR
-rsync -avm --delete --exclude '.git' --exclude 'vendor/*' --exclude 'internal' "$EXPORT_TEMP_DIR"/ "$OUTPUT_DIR"/
+rsync -avm --delete --exclude '.git' --exclude 'vendor/*' --exclude 'internal' --exclude 'ads' "$EXPORT_TEMP_DIR"/ "$OUTPUT_DIR"/
 
 # Cleanup the temp folder
 rm -r "$EXPORT_TEMP_DIR"
@@ -90,6 +90,20 @@ if [ -d "$OUTPUT_DIR"/.git ]; then
     git submodule sync
     # make sure they are all up to date
     git submodule update --init --recursive
+  )
+  # take another pass and sync the appropriate rev from the source repo
+  (
+    git config -f .gitmodules --get-regexp '^submodule\..*\.path$' |
+    while read SUBMODULE_PATH_KEY SUBMODULE_PATH
+    do
+      (
+        cd "$SUBMODULE_PATH"
+        SUBMODULE_REV=$(git log -1 --pretty=format:%H)
+        cd "$OUTPUT_DIR/$SUBMODULE_PATH"
+        git checkout $SUBMODULE_REV
+        git submodule update --init --recursive
+      )
+    done
   )
 
   # Checkout the correct revision in each of the submodules. We need to read the

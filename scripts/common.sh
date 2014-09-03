@@ -67,6 +67,15 @@ if [ -z "$FB_SDK_SCRIPT" ]; then
 
   # The path to the framework docs
   FB_SDK_FRAMEWORK_DOCS=$FB_SDK_BUILD/$FB_SDK_DOCSET_NAME
+
+  # The path to AudienceNetwork scripts directory
+  FB_ADS_FRAMEWORK_SCRIPT=$FB_SDK_ROOT/ads/scripts
+
+  # The path to the Bolts framework and its scripts directory
+  BOLTS_ROOT=$FB_SDK_ROOT/Bolts-IOS
+  BOLTS_SCRIPT=$BOLTS_ROOT/scripts
+  BOLTS_BINARY_NAME=Bolts
+  BOLTS_FRAMEWORK=$BOLTS_ROOT/build/ios/${BOLTS_BINARY_NAME}.framework
 fi
 
 # Set up one-time variables
@@ -119,7 +128,8 @@ if [ -z $FB_SDK_ENV ]; then
     exit 1
   }
 
-  test -n "$XCODEBUILD"   || XCODEBUILD=$(which xcodebuild)
+  test -n "$XCODESELECT"  || XCODESELECT=$(which xcode-select)
+  test -n "$XCTOOL"       || XCTOOL=$FB_SDK_ROOT/vendor/xctool/xctool.sh
   test -n "$LIPO"         || LIPO=$(which lipo)
   test -n "$PACKAGEBUILD" || PACKAGEBUILD=$(which pkgbuild)
   test -n "$PRODUCTBUILD" || PRODUCTBUILD=$(which productbuild)
@@ -128,7 +138,7 @@ if [ -z $FB_SDK_ENV ]; then
   # < XCode 4.3.1
   if [ ! -x "$XCODEBUILD" ]; then
     # XCode from app store
-    XCODEBUILD=/Applications/XCode.app/Contents/Developer/usr/bin/xcodebuild
+    XCODEBUILD="`"$XCODESELECT" -p`/usr/bin/xcodebuild"
   fi
 
 fi

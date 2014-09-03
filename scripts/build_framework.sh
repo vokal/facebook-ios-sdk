@@ -54,10 +54,16 @@ do
   esac
 done
 
-test -x "$XCODEBUILD" || die 'Could not find xcodebuild in $PATH'
 test -x "$LIPO" || die 'Could not find lipo in $PATH'
 
 FB_SDK_UNIVERSAL_BINARY=$FB_SDK_BUILD/${BUILDCONFIGURATION}-universal/$FB_SDK_BINARY_NAME
+
+# -----------------------------------------------------------------------------
+
+progress_message Building Bolts
+
+# -----------------------------------------------------------------------------
+$BOLTS_SCRIPT/build_framework.sh || die "Could not build Bolts."
 
 # -----------------------------------------------------------------------------
 
@@ -72,21 +78,24 @@ test -d "$FB_SDK_BUILD" \
 
 cd "$FB_SDK_SRC"
 function xcode_build_target() {
-  echo "Compiling for platform: ${1}."
-  "$XCODEBUILD" \
-    RUN_CLANG_STATIC_ANALYZER=NO \
-    -target "facebook-ios-sdk" \
+  echo "Compiling for platform: ${1} (${2}, ${3})."
+  "$XCTOOL" \
+    -project facebook-ios-sdk.xcodeproj \
+    -scheme facebook-ios-sdk \
     -sdk $1 \
     -configuration "${2}" \
+    VALID_ARCHS="${3}" \
+    ONLY_ACTIVE_ARCH=NO \
+    RUN_CLANG_STATIC_ANALYZER=NO \
     SYMROOT="$FB_SDK_BUILD" \
     clean build \
-    || die "XCode build failed for platform: ${1} (${2})."
+    || die "XCode build failed for platform: ${1} (${2}, ${3})."
 }
 
-xcode_build_target "iphonesimulator" "${BUILDCONFIGURATION}"
-xcode_build_target "iphoneos" "${BUILDCONFIGURATION}"
-xcode_build_target "iphonesimulator" "${BUILDCONFIGURATION}64"
-xcode_build_target "iphoneos" "${BUILDCONFIGURATION}64"
+xcode_build_target iphonesimulator "${BUILDCONFIGURATION}" i386
+xcode_build_target iphoneos "${BUILDCONFIGURATION}" "armv7 armv7s"
+xcode_build_target iphonesimulator "${BUILDCONFIGURATION}64" x86_64
+xcode_build_target iphoneos "${BUILDCONFIGURATION}64" arm64
 
 # -----------------------------------------------------------------------------
 # Merge lib files for different platforms into universal binary
@@ -173,12 +182,12 @@ if [ ${NOEXTRAS:-0} -eq  1 ];then
 else
   progress_message "Running unit tests."
   cd "$FB_SDK_SRC"
-  "$FB_SDK_SCRIPT/run_tests.sh" -c $BUILDCONFIGURATION facebook-ios-sdk-tests
+  "$FB_SDK_SCRIPT/run_tests.sh" -c $BUILDCONFIGURATION FacebookSDKTests FacebookSDKApplicationTests
 fi
 
 # -----------------------------------------------------------------------------
 # Done
 #
 
-progress_message "Framework version info:" `perl -ne 'print "$1 " if (m/FB_IOS_SDK_MIGRATION_BUNDLE @(.+)$/ || m/FB_IOS_SDK_VERSION_STRING @(.+)$/);' "$FB_SDK_SRC/Core/FBSDKVersion.h" "$FB_SDK_SRC/FacebookSDK.h"` 
+progress_message "Framework version info:" `perl -ne 'print "$1 " if (m/FB_IOS_SDK_VERSION_STRING @(.+)$/);' "$FB_SDK_SRC/FacebookSDK.h"` 
 common_success
